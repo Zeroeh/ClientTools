@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"path/filepath"
 )
 
 const (
@@ -26,6 +27,7 @@ const (
 
 var (
 	version string
+	workingPath string
 )
 
 func checkErr(err error) {
@@ -43,17 +45,17 @@ func checkUpdates() {
 	vers, err := ioutil.ReadAll(resp.Body)
 	checkErr(err)
 
-	localVers, err := ioutil.ReadFile("lib/version.txt")
+	localVers, err := ioutil.ReadFile(workingPath + "lib/version.txt")
 	checkErr(err)
 
 	if string(localVers) == string(vers) {
-		fmt.Println("Game not updated, still on build ", string(vers))
+		fmt.Println("Game not updated, still on build", string(vers))
 		checkMenu()
 		return
 	}
 
 	version = string(vers)
-	err = ioutil.WriteFile("lib/version.txt", vers, 0777)
+	err = ioutil.WriteFile(workingPath + "lib/version.txt", vers, 0777)
 	checkErr(err)
 
 	fmt.Println("Game updated from ", string(localVers), "to", string(vers))
@@ -69,10 +71,10 @@ func downloadClient(update, menu bool) {
 		version, err := ioutil.ReadAll(resp.Body)
 		checkErr(err)
 
-		err = ioutil.WriteFile("lib/version.txt", version, 0777)
+		err = ioutil.WriteFile(workingPath + "lib/version.txt", version, 0777)
 		checkErr(err)
 	}
-	file, err := os.Create("client" + version + ".swf")
+	file, err := os.Create(workingPath + "client" + version + ".swf")
 	checkErr(err)
 	defer file.Close()
 
@@ -89,30 +91,30 @@ func downloadClient(update, menu bool) {
 }
 
 func exportImages(menu bool) {
-	if _, err := os.Stat("client" + version + ".swf"); os.IsNotExist(err) {
+	if _, err := os.Stat(workingPath + "client" + version + ".swf"); os.IsNotExist(err) {
 		downloadClient(false, false)
 	}
 
 	java, err := exec.LookPath("java")
 	checkErr(err)
 
-	err = exec.Command(java, "-jar", "ffdec.jar", "-export", "image", "decompiled"+version+"/images", "client"+version+".swf").Run()
+	err = exec.Command(java, "-jar", "ffdec.jar", "-export", "image", workingPath + "decompiled"+version+"/images", workingPath + "client"+version+".swf").Run()
 	checkErr(err)
 
-	files, err := ioutil.ReadDir("decompiled" + version + "/images")
+	files, err := ioutil.ReadDir(workingPath + "decompiled" + version + "/images")
 	checkErr(err)
 
 	r := regexp.MustCompile("([a-z.]+)(\\w+.jpg|\\w+.png)")
 
 	for _, f := range files {
 		if strings.Count(f.Name(), ".") > 1 {
-			data, err := ioutil.ReadFile("decompiled" + version + "/images/" + f.Name())
+			data, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/images/" + f.Name())
 			checkErr(err)
 
 			name := r.FindAllStringSubmatch(f.Name(), -1)
 			path := strings.Replace(name[0][1], ".", "/", -1)
-			os.MkdirAll("decompiled"+version+"/formatted/"+path, 0777)
-			ioutil.WriteFile("decompiled"+version+"/formatted/"+path+name[0][2], data, 0777)
+			os.MkdirAll(workingPath + "decompiled"+version+"/formatted/"+path, 0777)
+			ioutil.WriteFile(workingPath + "decompiled"+version+"/formatted/"+path+name[0][2], data, 0777)
 			fmt.Println(name[0][2], "saved.")
 		}
 	}
@@ -124,31 +126,31 @@ func exportImages(menu bool) {
 }
 
 func exportBin() {
-	if _, err := os.Stat("client" + version + ".swf"); os.IsNotExist(err) {
+	if _, err := os.Stat(workingPath + "client" + version + ".swf"); os.IsNotExist(err) {
 		downloadClient(false, false)
 	}
 
 	java, err := exec.LookPath("java")
 	checkErr(err)
 
-	err = exec.Command(java, "-jar", "ffdec.jar", "-export", "binaryData", "decompiled"+version+"/binaryData", "client"+version+".swf").Run()
+	err = exec.Command(java, "-jar", "ffdec.jar", "-export", "binaryData", workingPath + "decompiled"+version+"/binaryData", workingPath + "client"+version+".swf").Run()
 	checkErr(err)
 
-	files, err := ioutil.ReadDir("decompiled" + version + "/binaryData")
+	files, err := ioutil.ReadDir(workingPath + "decompiled" + version + "/binaryData")
 	checkErr(err)
 
 	r := regexp.MustCompile("([a-z.]+)(\\w+.bin)")
 
 	for _, f := range files {
 		if strings.Count(f.Name(), ".") > 1 {
-			data, err := ioutil.ReadFile("decompiled" + version + "/binaryData/" + f.Name())
+			data, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/binaryData/" + f.Name())
 			checkErr(err)
 
 			matches := r.FindAllStringSubmatch(f.Name(), -1)
 			path := strings.Replace(matches[0][1], ".", "/", -1)
 			name := strings.Replace(matches[0][2], ".bin", ".dat", -1)
-			os.MkdirAll("decompiled"+version+"/formatted/"+path, 0777)
-			ioutil.WriteFile("decompiled"+version+"/formatted/"+path+name, data, 0777)
+			os.MkdirAll(workingPath + "decompiled"+version+"/formatted/"+path, 0777)
+			ioutil.WriteFile(workingPath + "decompiled" + version + "/formatted/" + path + name, data, 0777)
 			fmt.Println(name, "saved.")
 		}
 	}
@@ -162,17 +164,17 @@ func updateClient() {
 }
 
 func addProxy() {
-	if _, err := os.Stat("client" + version + ".swf"); os.IsNotExist(err) {
+	if _, err := os.Stat(workingPath + "client" + version + ".swf"); os.IsNotExist(err) {
 		downloadClient(false, false)
 	}
 
 	java, err := exec.LookPath("java")
 	checkErr(err)
 
-	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.servers.control.ParseServerDataCommand", "-export", "script", "decompiled"+version, "client"+version+".swf").Run()
+	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.servers.control.ParseServerDataCommand", "-export", "script", workingPath + "decompiled"+version, workingPath + "client"+version+".swf").Run()
 	checkErr(err)
 
-	file, err := ioutil.ReadFile("decompiled" + version + "/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as")
+	file, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as")
 	checkErr(err)
 	content := string(file)
 
@@ -180,9 +182,9 @@ func addProxy() {
 
 	content = r.ReplaceAllString(content, "_loc${1}_.push(this.LocalhostServer());\n\t return _loc${1}_\n\t}\n\n\tpublic function LocalhostServer():Server\n\t{\n\treturn new Server().setName(\"## Proxy Server ##\").setAddress(\"127.0.0.1\").setPort(Parameters.PORT).setLatLong(Number(50000),Number(50000)).setUsage(0).setIsAdminOnly(false);\n\t}")
 
-	ioutil.WriteFile("decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as", []byte(content), 0644)
+	ioutil.WriteFile(workingPath + "decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as", []byte(content), 0644)
 
-	err = exec.Command(java, "-jar", "ffdec.jar", "-replace", "client"+version+".swf", "client"+version+".swf", "kabam.rotmg.servers.control.ParseServerDataCommand", "decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as").Run()
+	err = exec.Command(java, "-jar", "ffdec.jar", "-replace", workingPath + "client"+version+".swf", workingPath + "client"+version+".swf", "kabam.rotmg.servers.control.ParseServerDataCommand", workingPath + "decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as").Run()
 	checkErr(err)
 
 	fmt.Println("Proxy added.")
@@ -195,7 +197,7 @@ func changeBackground() {
 		checkMenu()
 	}
 
-	if _, err := os.Stat("client" + version + ".swf"); os.IsNotExist(err) {
+	if _, err := os.Stat(workingPath + "client" + version + ".swf"); os.IsNotExist(err) {
 		downloadClient(false, false)
 	}
 
@@ -204,7 +206,7 @@ func changeBackground() {
 	java, err := exec.LookPath("java")
 	checkErr(err)
 
-	files, err := ioutil.ReadDir("decompiled" + version + "/images")
+	files, err := ioutil.ReadDir(workingPath + "decompiled" + version + "/images")
 	checkErr(err)
 
 	r := regexp.MustCompile("(\\d+)")
@@ -212,7 +214,7 @@ func changeBackground() {
 	for _, f := range files {
 		if strings.Contains(f.Name(), "TitleView_TitleScreenGraphic") {
 			matches := r.FindAllStringSubmatch(f.Name(), -1)
-			err = exec.Command(java, "-jar", "ffdec.jar", "-replace", "client"+version+".swf", "client"+version+".swf", matches[0][1], "background.png").Run()
+			err = exec.Command(java, "-jar", "ffdec.jar", "-replace", workingPath + "client"+version+".swf", workingPath + "client"+version+".swf", matches[0][1], workingPath + "background.png").Run()
 			checkErr(err)
 		}
 	}
@@ -258,7 +260,10 @@ func checkMenu() {
 
 func main() {
 	fmt.Println("Available", runtime.GOMAXPROCS(runtime.NumCPU()), "processes.")
-	vers, err := ioutil.ReadFile("lib/version.txt")
+	path, err := filepath.Abs("./")
+	checkErr(err)
+	workingPath = path + "/"
+	vers, err := ioutil.ReadFile(workingPath + "lib/version.txt")
 	checkErr(err)
 	version = string(vers)
 	checkMenu()
