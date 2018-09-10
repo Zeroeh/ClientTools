@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
-	"path/filepath"
 )
 
 const (
@@ -21,12 +21,13 @@ const (
 		"4. Export binary data.\n" +
 		"5. Add proxy server.\n" +
 		"6. Change background.\n" +
-		//"7. Update client.\n" +
+		"7. Export packets.\n" +
+		"8. Export assets config.\n" +
 		"> "
 )
 
 var (
-	version string
+	version     string
 	workingPath string
 )
 
@@ -55,7 +56,7 @@ func checkUpdates() {
 	}
 
 	version = string(vers)
-	err = ioutil.WriteFile(workingPath + "lib/version.txt", vers, 0777)
+	err = ioutil.WriteFile(workingPath+"lib/version.txt", vers, 0777)
 	checkErr(err)
 
 	fmt.Println("Game updated from ", string(localVers), "to", string(vers))
@@ -71,7 +72,7 @@ func downloadClient(update, menu bool) {
 		version, err := ioutil.ReadAll(resp.Body)
 		checkErr(err)
 
-		err = ioutil.WriteFile(workingPath + "lib/version.txt", version, 0777)
+		err = ioutil.WriteFile(workingPath+"lib/version.txt", version, 0777)
 		checkErr(err)
 	}
 	file, err := os.Create(workingPath + "client" + version + ".swf")
@@ -98,7 +99,7 @@ func exportImages(menu bool) {
 	java, err := exec.LookPath("java")
 	checkErr(err)
 
-	err = exec.Command(java, "-jar", "ffdec.jar", "-export", "image", workingPath + "decompiled"+version+"/images", workingPath + "client"+version+".swf").Run()
+	err = exec.Command(java, "-jar", "ffdec.jar", "-export", "image", workingPath+"decompiled"+version+"/images", workingPath+"client"+version+".swf").Run()
 	checkErr(err)
 
 	files, err := ioutil.ReadDir(workingPath + "decompiled" + version + "/images")
@@ -113,8 +114,8 @@ func exportImages(menu bool) {
 
 			name := r.FindAllStringSubmatch(f.Name(), -1)
 			path := strings.Replace(name[0][1], ".", "/", -1)
-			os.MkdirAll(workingPath + "decompiled"+version+"/formatted/"+path, 0777)
-			ioutil.WriteFile(workingPath + "decompiled"+version+"/formatted/"+path+name[0][2], data, 0777)
+			os.MkdirAll(workingPath+"decompiled"+version+"/formatted/"+path, 0777)
+			ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/"+path+name[0][2], data, 0777)
 			fmt.Println(name[0][2], "saved.")
 		}
 	}
@@ -133,7 +134,7 @@ func exportBin() {
 	java, err := exec.LookPath("java")
 	checkErr(err)
 
-	err = exec.Command(java, "-jar", "ffdec.jar", "-export", "binaryData", workingPath + "decompiled"+version+"/binaryData", workingPath + "client"+version+".swf").Run()
+	err = exec.Command(java, "-jar", "ffdec.jar", "-export", "binaryData", workingPath+"decompiled"+version+"/binaryData", workingPath+"client"+version+".swf").Run()
 	checkErr(err)
 
 	files, err := ioutil.ReadDir(workingPath + "decompiled" + version + "/binaryData")
@@ -149,18 +150,14 @@ func exportBin() {
 			matches := r.FindAllStringSubmatch(f.Name(), -1)
 			path := strings.Replace(matches[0][1], ".", "/", -1)
 			name := strings.Replace(matches[0][2], ".bin", ".dat", -1)
-			os.MkdirAll(workingPath + "decompiled"+version+"/formatted/"+path, 0777)
-			ioutil.WriteFile(workingPath + "decompiled" + version + "/formatted/" + path + name, data, 0777)
+			os.MkdirAll(workingPath+"decompiled"+version+"/formatted/"+path, 0777)
+			ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/"+path+name, data, 0777)
 			fmt.Println(name, "saved.")
 		}
 	}
 
 	fmt.Println("Binary data saved.")
 	checkMenu()
-}
-
-func updateClient() {
-
 }
 
 func addProxy() {
@@ -171,7 +168,7 @@ func addProxy() {
 	java, err := exec.LookPath("java")
 	checkErr(err)
 
-	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.servers.control.ParseServerDataCommand", "-export", "script", workingPath + "decompiled"+version, workingPath + "client"+version+".swf").Run()
+	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.servers.control.ParseServerDataCommand", "-export", "script", workingPath+"decompiled"+version, workingPath+"client"+version+".swf").Run()
 	checkErr(err)
 
 	file, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as")
@@ -182,9 +179,9 @@ func addProxy() {
 
 	content = r.ReplaceAllString(content, "_loc${1}_.push(this.LocalhostServer());\n\t return _loc${1}_\n\t}\n\n\tpublic function LocalhostServer():Server\n\t{\n\treturn new Server().setName(\"## Proxy Server ##\").setAddress(\"127.0.0.1\").setPort(Parameters.PORT).setLatLong(Number(50000),Number(50000)).setUsage(0).setIsAdminOnly(false);\n\t}")
 
-	ioutil.WriteFile(workingPath + "decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as", []byte(content), 0644)
+	ioutil.WriteFile(workingPath+"decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as", []byte(content), 0777)
 
-	err = exec.Command(java, "-jar", "ffdec.jar", "-replace", workingPath + "client"+version+".swf", workingPath + "client"+version+".swf", "kabam.rotmg.servers.control.ParseServerDataCommand", workingPath + "decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as").Run()
+	err = exec.Command(java, "-jar", "ffdec.jar", "-replace", workingPath+"client"+version+".swf", workingPath+"client"+version+".swf", "kabam.rotmg.servers.control.ParseServerDataCommand", workingPath+"decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as").Run()
 	checkErr(err)
 
 	fmt.Println("Proxy added.")
@@ -214,12 +211,86 @@ func changeBackground() {
 	for _, f := range files {
 		if strings.Contains(f.Name(), "TitleView_TitleScreenGraphic") {
 			matches := r.FindAllStringSubmatch(f.Name(), -1)
-			err = exec.Command(java, "-jar", "ffdec.jar", "-replace", workingPath + "client"+version+".swf", workingPath + "client"+version+".swf", matches[0][1], workingPath + "background.png").Run()
+			err = exec.Command(java, "-jar", "ffdec.jar", "-replace", workingPath+"client"+version+".swf", workingPath+"client"+version+".swf", matches[0][1], workingPath+"background.png").Run()
 			checkErr(err)
 		}
 	}
 
 	fmt.Println("Background changed.")
+	checkMenu()
+}
+
+func exportPackets() {
+	if _, err := os.Stat(workingPath + "client" + version + ".swf"); os.IsNotExist(err) {
+		downloadClient(false, false)
+	}
+
+	java, err := exec.LookPath("java")
+	checkErr(err)
+
+	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.messaging.impl.GameServerConnection", "-export", "script", workingPath+"decompiled"+version, workingPath+"client"+version+".swf").Run()
+	checkErr(err)
+
+	gsc, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/kabam/rotmg/messaging/impl/GameServerConnection.as")
+	checkErr(err)
+	content := string(gsc)
+
+	r, err := regexp.Compile("const ([\\s\\S]*?):int[\\s\\S]*?(\\d+);")
+	checkErr(err)
+	matches := r.FindAllStringSubmatch(content, -1)
+
+	as, err := os.Create(workingPath + "decompiled" + version + "/AS3.as")
+	checkErr(err)
+	defer as.Close()
+	xml, err := os.Create(workingPath + "decompiled" + version + "/K-Relay.xml")
+	checkErr(err)
+	defer xml.Close()
+
+	xml.WriteString("<Packets>\n")
+	for i := 0; i < len(matches); i++ {
+		as.WriteString("public static const " + matches[i][1] + ":int = " + matches[i][2] + ";\n")
+		xml.WriteString("	<Packet>\n		<PacketName>" + strings.Replace(matches[i][1], "_", "", -1) + "</PacketName>\n		<PacketID>" + matches[i][2] + "</PacketID>\n	</Packet>\n")
+	}
+	xml.WriteString("</Packets>")
+
+	fmt.Println("Packets saved.")
+	checkMenu()
+}
+
+func exportAssetsConfig() {
+	if _, err := os.Stat(workingPath + "client" + version + ".swf"); os.IsNotExist(err) {
+		downloadClient(false, false)
+	}
+
+	java, err := exec.LookPath("java")
+	checkErr(err)
+
+	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "com.company.assembleegameclient.util.AssetLoader", "-export", "script", workingPath+"decompiled"+version, workingPath+"client"+version+".swf").Run()
+	checkErr(err)
+
+	assetLoader, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/com/company/assembleegameclient/util/AssetLoader.as")
+	checkErr(err)
+
+	ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/com/company/assembleegameclient/util/AssetLoader.as", assetLoader, 0777)
+
+	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.assets.EmbeddedAssets", "-export", "script", workingPath+"decompiled"+version, workingPath+"client"+version+".swf").Run()
+	checkErr(err)
+
+	embeddedAssets, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/kabam/rotmg/assets/EmbeddedAssets.as")
+	checkErr(err)
+
+	ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/kabam/rotmg/assets/EmbeddedAssets.as", embeddedAssets, 0777)
+
+	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.assets.EmbeddedData", "-export", "script", workingPath+"decompiled"+version, workingPath+"client"+version+".swf").Run()
+	checkErr(err)
+
+	embeddedData, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/kabam/rotmg/assets/EmbeddedData.as")
+	checkErr(err)
+
+	ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/kabam/rotmg/assets/EmbeddedData.as", embeddedData, 0777)
+
+	fmt.Println("Warning! Vanilla only!")
+	fmt.Println("Config saved.")
 	checkMenu()
 }
 
@@ -243,9 +314,12 @@ func getWorkingModel(model int) {
 	case 6:
 		changeBackground()
 		return
-	/*case 7:
-	updateClient()
-	return*/
+	case 7:
+		exportPackets()
+		return
+	case 8:
+		exportAssetsConfig()
+		return
 	default:
 		fmt.Print("Unknown model.")
 	}
