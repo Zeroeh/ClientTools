@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 )
 
@@ -27,11 +26,13 @@ const (
 )
 
 var (
+	versionURL = "https://realmofthemadgodhrd.appspot.com/version.txt"
+	clientURL = "https://realmofthemadgodhrd.appspot.com/AssembleeGameClient"
 	version     string
 	workingPath string
 )
 
-func checkErr(err error) {
+func logErr(err error) {
 	if err != nil {
 		log.Println(err)
 		checkMenu()
@@ -39,15 +40,15 @@ func checkErr(err error) {
 }
 
 func checkUpdates() {
-	resp, err := http.Get("http://www.realmofthemadgod.com/version.txt")
-	checkErr(err)
+	resp, err := http.Get(versionURL)
+	logErr(err)
 	defer resp.Body.Close()
 
 	vers, err := ioutil.ReadAll(resp.Body)
-	checkErr(err)
+	logErr(err)
 
 	localVers, err := ioutil.ReadFile(workingPath + "lib/version.txt")
-	checkErr(err)
+	logErr(err)
 
 	if string(localVers) == string(vers) {
 		fmt.Println("Game not updated, still on build", string(vers))
@@ -56,8 +57,8 @@ func checkUpdates() {
 	}
 
 	version = string(vers)
-	err = ioutil.WriteFile(workingPath+"lib/version.txt", vers, 0777)
-	checkErr(err)
+	err = ioutil.WriteFile(workingPath+"lib/version.txt", vers, 0666)
+	logErr(err)
 
 	fmt.Println("Game updated from ", string(localVers), "to", string(vers))
 	downloadClient(true, true)
@@ -65,25 +66,25 @@ func checkUpdates() {
 
 func downloadClient(update, menu bool) {
 	if !update {
-		resp, err := http.Get("http://www.realmofthemadgod.com/version.txt")
-		checkErr(err)
+		resp, err := http.Get(versionURL)
+		logErr(err)
 		defer resp.Body.Close()
 
 		version, err := ioutil.ReadAll(resp.Body)
-		checkErr(err)
+		logErr(err)
 
-		err = ioutil.WriteFile(workingPath+"lib/version.txt", version, 0777)
-		checkErr(err)
+		err = ioutil.WriteFile(workingPath+"lib/version.txt", version, 0666)
+		logErr(err)
 	}
 	file, err := os.Create(workingPath + "client" + version + ".swf")
-	checkErr(err)
+	logErr(err)
 	defer file.Close()
 
-	resp, err := http.Get("http://www.realmofthemadgod.com/AssembleeGameClient" + string(version) + ".swf")
-	checkErr(err)
+	resp, err := http.Get(clientURL + string(version) + ".swf")
+	logErr(err)
 
 	_, err = io.Copy(file, resp.Body)
-	checkErr(err)
+	logErr(err)
 
 	fmt.Println("Client v" + string(version) + " saved.")
 	if menu {
@@ -97,25 +98,25 @@ func exportImages(menu bool) {
 	}
 
 	java, err := exec.LookPath("java")
-	checkErr(err)
+	logErr(err)
 
 	err = exec.Command(java, "-jar", "ffdec.jar", "-export", "image", workingPath+"decompiled"+version+"/images", workingPath+"client"+version+".swf").Run()
-	checkErr(err)
+	logErr(err)
 
 	files, err := ioutil.ReadDir(workingPath + "decompiled" + version + "/images")
-	checkErr(err)
+	logErr(err)
 
 	r := regexp.MustCompile("([a-z.]+)(\\w+.jpg|\\w+.png)")
 
 	for _, f := range files {
 		if strings.Count(f.Name(), ".") > 1 {
 			data, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/images/" + f.Name())
-			checkErr(err)
+			logErr(err)
 
 			name := r.FindAllStringSubmatch(f.Name(), -1)
 			path := strings.Replace(name[0][1], ".", "/", -1)
-			os.MkdirAll(workingPath+"decompiled"+version+"/formatted/"+path, 0777)
-			ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/"+path+name[0][2], data, 0777)
+			os.MkdirAll(workingPath+"decompiled"+version+"/formatted/"+path, 0666)
+			ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/"+path+name[0][2], data, 0666)
 			fmt.Println(name[0][2], "saved.")
 		}
 	}
@@ -132,26 +133,26 @@ func exportBin() {
 	}
 
 	java, err := exec.LookPath("java")
-	checkErr(err)
+	logErr(err)
 
 	err = exec.Command(java, "-jar", "ffdec.jar", "-export", "binaryData", workingPath+"decompiled"+version+"/binaryData", workingPath+"client"+version+".swf").Run()
-	checkErr(err)
+	logErr(err)
 
 	files, err := ioutil.ReadDir(workingPath + "decompiled" + version + "/binaryData")
-	checkErr(err)
+	logErr(err)
 
 	r := regexp.MustCompile("([a-z.]+)(\\w+.bin)")
 
 	for _, f := range files {
 		if strings.Count(f.Name(), ".") > 1 {
 			data, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/binaryData/" + f.Name())
-			checkErr(err)
+			logErr(err)
 
 			matches := r.FindAllStringSubmatch(f.Name(), -1)
 			path := strings.Replace(matches[0][1], ".", "/", -1)
 			name := strings.Replace(matches[0][2], ".bin", ".dat", -1)
-			os.MkdirAll(workingPath+"decompiled"+version+"/formatted/"+path, 0777)
-			ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/"+path+name, data, 0777)
+			os.MkdirAll(workingPath+"decompiled"+version+"/formatted/"+path, 0666)
+			ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/"+path+name, data, 0666)
 			fmt.Println(name, "saved.")
 		}
 	}
@@ -166,23 +167,23 @@ func addProxy() {
 	}
 
 	java, err := exec.LookPath("java")
-	checkErr(err)
+	logErr(err)
 
 	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.servers.control.ParseServerDataCommand", "-export", "script", workingPath+"decompiled"+version, workingPath+"client"+version+".swf").Run()
-	checkErr(err)
+	logErr(err)
 
 	file, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as")
-	checkErr(err)
+	logErr(err)
 	content := string(file)
 
 	r := regexp.MustCompile("return _loc(\\d+)_;[\\s\\S]*?}")
 
 	content = r.ReplaceAllString(content, "_loc${1}_.push(this.LocalhostServer());\n\t return _loc${1}_\n\t}\n\n\tpublic function LocalhostServer():Server\n\t{\n\treturn new Server().setName(\"## Proxy Server ##\").setAddress(\"127.0.0.1\").setPort(Parameters.PORT).setLatLong(Number(50000),Number(50000)).setUsage(0).setIsAdminOnly(false);\n\t}")
 
-	ioutil.WriteFile(workingPath+"decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as", []byte(content), 0777)
+	ioutil.WriteFile(workingPath+"decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as", []byte(content), 0666)
 
 	err = exec.Command(java, "-jar", "ffdec.jar", "-replace", workingPath+"client"+version+".swf", workingPath+"client"+version+".swf", "kabam.rotmg.servers.control.ParseServerDataCommand", workingPath+"decompiled"+version+"/scripts/kabam/rotmg/servers/control/ParseServerDataCommand.as").Run()
-	checkErr(err)
+	logErr(err)
 
 	fmt.Println("Proxy added.")
 	checkMenu()
@@ -201,10 +202,10 @@ func changeBackground() {
 	exportImages(false)
 
 	java, err := exec.LookPath("java")
-	checkErr(err)
+	logErr(err)
 
 	files, err := ioutil.ReadDir(workingPath + "decompiled" + version + "/images")
-	checkErr(err)
+	logErr(err)
 
 	r := regexp.MustCompile("(\\d+)")
 
@@ -212,7 +213,7 @@ func changeBackground() {
 		if strings.Contains(f.Name(), "TitleView_TitleScreenGraphic") {
 			matches := r.FindAllStringSubmatch(f.Name(), -1)
 			err = exec.Command(java, "-jar", "ffdec.jar", "-replace", workingPath+"client"+version+".swf", workingPath+"client"+version+".swf", matches[0][1], workingPath+"background.png").Run()
-			checkErr(err)
+			logErr(err)
 		}
 	}
 
@@ -226,24 +227,24 @@ func exportPackets() {
 	}
 
 	java, err := exec.LookPath("java")
-	checkErr(err)
+	logErr(err)
 
 	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.messaging.impl.GameServerConnection", "-export", "script", workingPath+"decompiled"+version, workingPath+"client"+version+".swf").Run()
-	checkErr(err)
+	logErr(err)
 
 	gsc, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/kabam/rotmg/messaging/impl/GameServerConnection.as")
-	checkErr(err)
+	logErr(err)
 	content := string(gsc)
 
 	r, err := regexp.Compile("const ([\\s\\S]*?):int[\\s\\S]*?(\\d+);")
-	checkErr(err)
+	logErr(err)
 	matches := r.FindAllStringSubmatch(content, -1)
 
 	as, err := os.Create(workingPath + "decompiled" + version + "/AS3.as")
-	checkErr(err)
+	logErr(err)
 	defer as.Close()
 	xml, err := os.Create(workingPath + "decompiled" + version + "/K-Relay.xml")
-	checkErr(err)
+	logErr(err)
 	defer xml.Close()
 
 	xml.WriteString("<Packets>\n")
@@ -263,31 +264,31 @@ func exportAssetsConfig() {
 	}
 
 	java, err := exec.LookPath("java")
-	checkErr(err)
+	logErr(err)
 
 	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "com.company.assembleegameclient.util.AssetLoader", "-export", "script", workingPath+"decompiled"+version, workingPath+"client"+version+".swf").Run()
-	checkErr(err)
+	logErr(err)
 
 	assetLoader, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/com/company/assembleegameclient/util/AssetLoader.as")
-	checkErr(err)
+	logErr(err)
 
-	ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/com/company/assembleegameclient/util/AssetLoader.as", assetLoader, 0777)
+	ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/com/company/assembleegameclient/util/AssetLoader.as", assetLoader, 0666)
 
 	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.assets.EmbeddedAssets", "-export", "script", workingPath+"decompiled"+version, workingPath+"client"+version+".swf").Run()
-	checkErr(err)
+	logErr(err)
 
 	embeddedAssets, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/kabam/rotmg/assets/EmbeddedAssets.as")
-	checkErr(err)
+	logErr(err)
 
-	ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/kabam/rotmg/assets/EmbeddedAssets.as", embeddedAssets, 0777)
+	ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/kabam/rotmg/assets/EmbeddedAssets.as", embeddedAssets, 0666)
 
 	err = exec.Command(java, "-jar", "ffdec.jar", "-selectclass", "kabam.rotmg.assets.EmbeddedData", "-export", "script", workingPath+"decompiled"+version, workingPath+"client"+version+".swf").Run()
-	checkErr(err)
+	logErr(err)
 
 	embeddedData, err := ioutil.ReadFile(workingPath + "decompiled" + version + "/scripts/kabam/rotmg/assets/EmbeddedData.as")
-	checkErr(err)
+	logErr(err)
 
-	ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/kabam/rotmg/assets/EmbeddedData.as", embeddedData, 0777)
+	ioutil.WriteFile(workingPath+"decompiled"+version+"/formatted/kabam/rotmg/assets/EmbeddedData.as", embeddedData, 0666)
 
 	fmt.Println("Warning! Vanilla only!")
 	fmt.Println("Config saved.")
@@ -333,12 +334,11 @@ func checkMenu() {
 }
 
 func main() {
-	fmt.Println("Available", runtime.GOMAXPROCS(runtime.NumCPU()), "processes.")
 	path, err := filepath.Abs("./")
-	checkErr(err)
+	logErr(err)
 	workingPath = path + "/"
 	vers, err := ioutil.ReadFile(workingPath + "lib/version.txt")
-	checkErr(err)
+	logErr(err)
 	version = string(vers)
 	checkMenu()
 }
